@@ -32,8 +32,8 @@ Nexus is a PHP framework that treats architecture as runtime configuration. A si
 ## Quick Start
 
 ```
-git clone <repo> project
-cd project
+git clone https://github.com/amir-starX/Nexus.git
+cd Nexus
 composer install
 cp .env.example .env
 ```
@@ -129,8 +129,8 @@ Nexus فریمورکی است که معماری را به‌عنوان پیکر�
 ## شروع سریع
 
 ```
-git clone <repo> project
-cd project
+git clone https://github.com/amir-starX/Nexus.git
+cd Nexus
 composer install
 cp .env.example .env
 ```
