@@ -1,0 +1,64 @@
+{
+    "app": {
+        "name": "Nexus Composite",
+        "env": "local",
+        "debug": true,
+        "key": ""
+    },
+    "architecture": {
+        "default": "mvc",
+        "routes": {},
+        "modules": {},
+        "compose": ["mvc", "cqrs"],
+        "strategy": "fallthrough",
+        "kernels": {},
+        "hexagonal": {
+            "ports": {}
+        },
+        "layered": {
+            "layers": []
+        }
+    },
+    "routing": {
+        "routes": {
+            "/": {
+                "methods": ["GET"],
+                "handler": "App\\Controller\\HomeController@index"
+            },
+            "/api/users": {
+                "methods": ["POST"],
+                "handler": "App\\Controller\\UsersController@create"
+            }
+        }
+    },
+    "container": {
+        "bindings": {}
+    },
+    "providers": [
+        "App\\Provider\\AppServiceProvider"
+    ],
+    "adapters": [],
+    "adapters_options": {},
+    "plugins": {
+        "bridges": [],
+        "auto_install": true
+    },
+    "error_panel": {
+        "enabled": true,
+        "theme": {
+            "primary": "#6d28d9",
+            "background": "#0f172a",
+            "foreground": "#e2e8f0",
+            "accent": "#22d3ee",
+            "logo": null
+        },
+        "widgets": {
+            "stack_trace": true,
+            "query_log": true,
+            "request_data": true,
+            "timings": true,
+            "resolved_pattern": true,
+            "config_state": true
+        }
+    }
+}

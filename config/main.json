@@ -1,0 +1,59 @@
+{
+    "app": {
+        "name": "Nexus",
+        "env": "local",
+        "debug": true,
+        "key": "",
+        "base_url": "/amir-starx/project/public"
+    },
+    "architecture": {
+        "default": "mvc",
+        "routes": {},
+        "modules": {},
+        "compose": [],
+        "strategy": "fallthrough",
+        "kernels": {},
+        "hexagonal": { "ports": {} },
+        "layered": { "layers": [] }
+    },
+    "routing": {
+        "routes": {
+            "/": {
+                "methods": ["GET"],
+                "handler": "App\\Controller\\HomeController@index"
+            }
+        }
+    },
+    "container": { "bindings": {} },
+    "providers": [],
+    "adapters": [],
+    "adapters_options": {
+        "doctrine": {}, "eloquent": {},
+        "twig": { "paths": [], "cache": null },
+        "blade": { "views": null, "cache": null },
+        "latte": { "temp_dir": null },
+        "monolog": { "path": null, "level": 100 }
+    },
+    "plugins": {
+        "bridges": [],
+        "auto_install": true
+    },
+    "error_panel": {
+        "enabled": true,
+        "theme": {
+            "primary": "#8b5cf6",
+            "background": "#06060b",
+            "foreground": "#ececf5",
+            "accent": "#22d3ee",
+            "logo": null
+        },
+        "widgets": {
+            "stack_trace": true,
+            "query_log": true,
+            "request_data": true,
+            "timings": true,
+            "resolved_pattern": true,
+            "config_state": true
+        }
+    }
+}
