@@ -90,7 +90,7 @@ Full reference: see `DOCUMENTATION.md`.
 
 ## License
 
-MIT.
+apache2
 
 ---
 
@@ -187,7 +187,7 @@ DocumentRoot آپاچی را به `public/` تنظیم کنید، یا `http://l
 
 ## مجوز
 
-MIT.
+apache2
 
 ---
 
