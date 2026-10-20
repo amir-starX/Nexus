@@ -1,107 +1,115 @@
-> **برای نسخه فارسی به پایین اسکرول کنید.**
-> **Scroll down for Persian version.**
+# OmniCore — Complete Documentation
+
+**Project:** OmniCore  
+**Type:** Configuration-driven, multi-paradigm PHP framework  
+**PHP:** 8.2+  
+**Status:** Experimental / under active development  
+**License:** See the repository's `LICENSE` file
+
+> OmniCore is designed to let an application select and combine supported architectural patterns through configuration. It integrates selected third-party packages through adapters; it does not automatically provide full compatibility with every PHP framework.
+
+**فارسی:** راهنمای فارسی پس از نسخهٔ انگلیسی آمده است.
+
+## Table of contents
+
+1. [Overview](#1-overview)
+2. [Requirements and installation](#2-requirements-and-installation)
+3. [Project structure](#3-project-structure)
+4. [Configuration](#4-configuration)
+5. [Request lifecycle](#5-request-lifecycle)
+6. [Architecture kernels](#6-architecture-kernels)
+7. [Selecting an architecture](#7-selecting-an-architecture)
+8. [Compose mode](#8-compose-mode)
+9. [Routing](#9-routing)
+10. [Dependency injection](#10-dependency-injection)
+11. [Service providers](#11-service-providers)
+12. [Adapters](#12-adapters)
+13. [Plugin bridges](#13-plugin-bridges)
+14. [Development error panel](#14-development-error-panel)
+15. [Handlers and responses](#15-handlers-and-responses)
+16. [Environment variables](#16-environment-variables)
+17. [Apache configuration](#17-apache-configuration)
+18. [Extending OmniCore](#18-extending-omnicore)
+19. [Deployment and security](#19-deployment-and-security)
+20. [Troubleshooting](#20-troubleshooting)
+21. [Contributing](#21-contributing)
+22. [مجوز و وضعیت پروژه](#مجوز-و-وضعیت-پروژه)
 
 ---
 
-# Nexus Framework — Complete Documentation
+## 1. Overview
 
-**Version:** 1.0
-**PHP:** 8.2+
-**License:** MIT
+OmniCore is a configuration-driven PHP framework intended to support more than one application architecture in the same codebase. Depending on the features implemented and enabled in the checked-out version, architecture selection can be configured globally, for a route, or for a module.
 
-Nexus is a configuration-driven, multi-paradigm PHP framework. A single file — `config/main.json` — controls architecture, routing, DI, adapters, plugins, and the error panel. You can switch architectural patterns globally, per-route, per-module, or run several at once inside the same request. Existing frameworks are integrated through adapters rather than rewritten.
+Design goals:
 
----
+- **Configuration-driven behavior:** use `config/main.json` for supported runtime choices.
+- **Multiple architecture patterns:** use a suitable kernel for each supported route or module.
+- **Extensibility:** register custom kernels, service providers, adapters, and plugin bridges through the framework's contracts.
+- **Integration rather than reimplementation:** connect selected third-party packages through adapters.
+- **Separation of concerns:** keep application code separate from framework internals.
 
-## Table of Contents
+### Important scope note
 
-1. Introduction
-2. Requirements & Installation
-3. Project Structure
-4. The Single Source of Truth: `main.json`
-5. Request Lifecycle
-6. Architectural Patterns (Kernels)
-7. Hot-Switching Paradigms
-8. Coexistence (Compose Mode)
-9. Routing
-10. Dependency Injection Container
-11. Service Providers
-12. Adapters
-13. Plugin Bridges & Auto-Install
-14. Error Panel
-15. Handlers & Responses
-16. Environment & Configuration Loading
-17. Apache Setup
-18. Examples
-19. Extending the Framework
-20. Packaging & Deployment
-21. Troubleshooting
+The names of architecture patterns and third-party packages in this document describe integration points documented by the project. They should not be interpreted as a guarantee that all features of the named frameworks are implemented or interchangeable. Check the actual source, dependency list, and tests for the version you use.
 
----
+## 2. Requirements and installation
 
-## 1. Introduction
-
-Nexus is not a framework that forces one architecture. It treats architecture as runtime configuration. The same codebase can serve an MVC page, a CQRS API endpoint, an ADR report, and a hexagonal module — all in one deployment, all driven by `main.json`.
-
-Core principles:
-
-- **Configuration over code.** Behavior changes come from `main.json`, not from editing PHP files.
-- **Hot-switchable paradigms.** Global, per-route, per-module, and coexistence.
-- **Adapters, not rewrites.** Symfony, Illuminate, Slim, Laminas, Doctrine, Twig, etc. are wrapped, not reimplemented.
-- **Minimal core.** Small, strict, typed, PSR-compliant.
-- **Themeable developer experience.** The error panel is fully driven by `main.json`.
-
----
-
-## 2. Requirements & Installation
-
-**Requirements**
+### Requirements
 
 - PHP 8.2 or newer
 - Composer
-- Apache with `mod_rewrite` enabled
-- Writable `storage/cache` and `storage/logs`
+- Apache with `mod_rewrite` enabled if using the Apache setup below
+- Write access to runtime directories used by the application, such as `storage/cache` and `storage/logs`
 
-**Installation**
+Some adapters require additional Composer packages.
 
-```
-git clone <repo> project
-cd project
+### Clone and install
+
+```bash
+git clone https://github.com/amir-starX/OmniCore.git
+cd OmniCore
 composer install
+```
+
+If the repository contains `.env.example`, create a local environment file:
+
+```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+Review `.env` and `config/main.json` before running the application. Never commit real credentials or production secrets.
 
-```
+Example environment settings:
+
+```dotenv
 APP_ENV=local
 APP_DEBUG=true
-APP_KEY=base64:CHANGE_ME
 APP_URL=http://localhost
 CONFIG_PATH=config/main.json
 ```
 
-Point Apache DocumentRoot to `public/`, or access it as `http://localhost/project/public/`.
+Use the exact variables supported by the current source version. Do not assume a placeholder value such as `APP_KEY` is required unless the application or an enabled package actually uses it.
 
----
+## 3. Project structure
 
-## 3. Project Structure
+The documented project layout is approximately:
 
-```
-project/
-├── app/                    Application code (namespace App\)
+```text
+OmniCore/
+├── app/                    Application code
 │   ├── Controller/
 │   ├── Cqrs/
 │   ├── Module/
 │   ├── Provider/
 │   └── Kernel/
 ├── config/
-│   ├── main.json           Primary configuration
-│   └── main.composite.json Alternative (compose mode)
+│   ├── main.json
+│   └── main.composite.json
 ├── public/
-│   ├── index.php           Front controller
-│   └── .htaccess           Rewrite rules
-├── src/                    Framework core (namespace Nexus\)
+│   ├── index.php
+│   └── .htaccess
+├── src/                    Framework core
 │   ├── Adapters/
 │   ├── Bootstrap/
 │   ├── Config/
@@ -111,365 +119,382 @@ project/
 │   ├── Exception/
 │   ├── Http/
 │   ├── Kernel/
-│   ├── Kernels/            Pattern implementations
+│   ├── Kernels/
 │   ├── Plugins/
 │   ├── Routing/
 │   └── Support/
 ├── storage/
 │   ├── cache/
 │   └── logs/
-├── .env
 ├── .env.example
 ├── composer.json
+├── DOCUMENTATION.md
 └── README.md
 ```
 
----
+This is an illustrative tree based on the documented layout; use the actual repository tree as the source of truth if files have changed.
 
-## 4. The Single Source of Truth: `main.json`
+> **Namespace note:** some existing classes and examples may still use the `Nexus\` namespace from the project's earlier name. Renaming the GitHub repository does not rename PHP namespaces, Composer autoload mappings, or class references. Check `composer.json` and the source before changing namespaces.
 
-Everything is driven by `config/main.json`. Top-level sections:
+## 4. Configuration
+
+The primary configuration file is `config/main.json`. The documented top-level sections include:
 
 | Section | Purpose |
 |---|---|
-| `app` | Name, environment, debug, key |
-| `architecture` | Default pattern, per-route, per-module, compose chain |
+| `app` | Application environment and debug settings |
+| `architecture` | Default pattern, route/module overrides, custom kernels, composition |
 | `routing` | Route definitions |
-| `container` | Container bindings |
+| `container` | Dependency-injection bindings |
 | `providers` | Service provider classes |
-| `adapters` | Enabled adapters (list of names) |
-| `adapters_options` | Per-adapter options (Doctrine, Eloquent, Twig, etc.) |
-| `plugins` | Plugin bridges and auto-install flag |
-| `error_panel` | Theme, widgets, enable flag |
+| `adapters` | Enabled adapter names |
+| `adapters_options` | Adapter-specific options |
+| `plugins` | Plugin bridges and related options |
+| `error_panel` | Development error-panel options |
 
-Changing `main.json` alone changes runtime behavior. No PHP edits are required for the standard workflows.
+### Configuration rules
 
----
+- Keep JSON valid: double quotes are required for keys and string values, and comments are not allowed in standard JSON.
+- Use only options supported by the current implementation.
+- Validate configuration before deploying it.
+- Keep credentials out of committed configuration files.
+- Treat `CONFIG_PATH` as a path to the active configuration file, not as a way to enable features that have not been implemented.
 
-## 5. Request Lifecycle
+A minimal illustrative architecture fragment:
 
+```json
+{
+  "architecture": {
+    "default": "mvc",
+    "routes": {
+      "/api/users": "cqrs",
+      "/reports/{id}": "adr"
+    },
+    "modules": {
+      "Billing": "hexagonal"
+    },
+    "compose": []
+  }
+}
 ```
-Apache
+
+This is a fragment, not a complete configuration file. Merge it into the structure expected by your checked-out version.
+
+## 5. Request lifecycle
+
+The documented high-level request flow is:
+
+```text
+Web server
   └── public/index.php
-        └── Application::create($basePath)
-              ├── Env::load()
-              ├── ConfigLoader::load()        ← main.json
-              └── ContextFactory::build()
-                    ├── ContainerFactory::build()
-                    ├── RouterFactory::build()
-                    ├── PatternResolver + KernelRegistry + CompositeKernel
-                    ├── KernelLoader::register()       ← all pattern kernels
-                    ├── AdapterRegistry::boot()        ← enabled adapters
-                    ├── BridgeBootstrapper::boot()     ← plugin bridges
-                    └── ProviderLoader::register/boot()
-        └── Application::handle($uri, $method)
-              └── Dispatcher::dispatch()
-                    ├── Router::match()             ← returns Request
-                    └── CompositeKernel::handle()
-                          ├── PatternResolver::chain()   ← resolve pattern(s)
-                          └── for each kernel in chain: Kernel::handle()
-                                └── HandlerResolver::invoke()
-                                      └── Response
-        └── ResponseEmitter::send()
+        └── Application bootstrap
+              ├── Load environment
+              ├── Load configuration
+              ├── Build application context
+              ├── Build container and router
+              ├── Register architecture kernels
+              ├── Boot enabled adapters and plugin bridges
+              └── Register and boot service providers
+        └── Match request route
+              └── Resolve architecture kernel(s)
+                    └── Resolve and invoke handler
+                          └── Create response
+        └── Emit response
 ```
 
-The request is matched once, the pattern chain is resolved once, and each kernel in the chain gets the same `KernelContext`. The previous kernel's `Response` is passed to the next as `RequestContext::previous`, allowing fallthrough composition.
+This diagram is conceptual and may not represent every internal call in every version. Consult the implementation when debugging lifecycle order or relying on side effects.
 
----
+## 6. Architecture kernels
 
-## 6. Architectural Patterns (Kernels)
+Architecture kernels encapsulate request-handling strategies. The current documentation lists the following patterns:
 
-Every pattern implements `PatternKernelInterface`:
-
-```php
-interface PatternKernelInterface {
-    public function name(): string;
-    public function supports(RequestContext $ctx): bool;
-    public function handle(KernelContext $context, RequestContext $ctx): Response;
-}
-```
-
-Built-in kernels:
-
-| Name | Semantics |
+| Pattern | Intended behavior |
 |---|---|
-| `mvc` | Controller method handles the request |
-| `hmvc` | Same as MVC plus module attribute propagation (`hmvc.module`) |
-| `adr` | Action handles the request (handler acts as action) |
-| `cqrs` | Dispatches a command through a `CommandBus` if present |
-| `hexagonal` | Binds configured ports as request attributes, then invokes |
-| `microkernel` | Boots every registered plugin, then invokes |
-| `layered` | Runs configured layer pipeline (each layer wraps the next) |
-| `event-driven` | Invokes handler, then dispatches queued events |
-| `modular` | Boots all registered modules (or one specific module), then invokes |
+| `mvc` | Invoke a controller handler |
+| `hmvc` | MVC-style handling with module context |
+| `adr` | Use an action as the request handler |
+| `cqrs` | Dispatch a command when a compatible command bus is configured |
+| `hexagonal` | Expose configured ports to the request handler |
+| `microkernel` | Integrate registered plugins into request handling |
+| `layered` | Process a request through a configured layer pipeline |
+| `event-driven` | Dispatch queued events after handler execution |
+| `modular` | Initialize registered modules before handling |
 
-Custom kernels can be registered through `architecture.kernels`:
+These labels describe intended behavior, not a guarantee that every pattern is production-ready or implements the full corresponding architectural methodology.
 
-```json
-"architecture": {
-  "kernels": {
-    "my-pattern": "App\\Kernel\\MyPatternKernel"
-  }
-}
-```
+### Custom kernels
 
-Any class implementing `PatternKernelInterface` is acceptable.
+The documented extension point is `PatternKernelInterface`. Check the exact namespace and method signatures in the source before implementing a custom kernel; older examples may use the `Nexus\` namespace.
 
----
-
-## 7. Hot-Switching Paradigms
-
-**Global** — applies to everything:
+The configuration shape documented for registering a custom kernel is:
 
 ```json
-"architecture": { "default": "mvc" }
-```
-
-**Per-route** — keyed by path pattern:
-
-```json
-"architecture": {
-  "routes": {
-    "/api/users": "cqrs",
-    "/admin": "hmvc",
-    "/reports/{id}": "adr"
-  }
-}
-```
-
-A route can also specify its pattern inline:
-
-```json
-"routing": {
-  "routes": {
-    "/api/users": {
-      "methods": ["POST"],
-      "handler": "App\\Controller\\UsersController@create",
-      "architecture": "cqrs"
+{
+  "architecture": {
+    "kernels": {
+      "my-pattern": "App\\Kernel\\MyPatternKernel"
     }
   }
 }
 ```
 
-**Per-module** — keyed by module name:
+This fragment must be merged into the main configuration file.
+
+## 7. Selecting an architecture
+
+### Default architecture
 
 ```json
-"architecture": {
-  "modules": {
-    "Billing": "hexagonal",
-    "Auth": "mvc"
+{
+  "architecture": {
+    "default": "mvc"
   }
 }
 ```
 
-Resolution order:
-
-1. Route-level `architecture` field.
-2. Module match (`architecture.modules[route.module]`).
-3. Path match (`architecture.routes[path]`).
-4. Global default (`architecture.default`).
-
----
-
-## 8. Coexistence (Compose Mode)
-
-Coexistence runs multiple patterns in one request:
+### Architecture by route
 
 ```json
-"architecture": {
-  "compose": ["mvc", "cqrs"],
-  "strategy": "fallthrough"
+{
+  "architecture": {
+    "routes": {
+      "/api/users": "cqrs",
+      "/admin": "hmvc",
+      "/reports/{id}": "adr"
+    }
+  }
 }
 ```
 
-When `compose` is non-empty, it overrides default/routes/modules for **all** requests. Each kernel in the chain receives the previous kernel's `Response` as `RequestContext::previous`. If a kernel returns a non-null response, the chain stops. `strategy: "fallthrough"` means each kernel decides whether to handle by returning a response or letting the next take over.
+### Architecture by module
 
-Typical composition: an MVC controller dispatches a `Command` by setting `$request->attributes['command']`. The `cqrs` kernel, seeing the command, dispatches it through the `CommandBus` and returns the result. One request, two patterns.
+```json
+{
+  "architecture": {
+    "modules": {
+      "Billing": "hexagonal",
+      "Auth": "mvc"
+    }
+  }
+}
+```
 
-To toggle coexistence for the whole app, set `CONFIG_PATH=config/main.composite.json` in `.env`.
+A route may also declare an `architecture` field inline if supported by the active routing implementation.
 
----
+The documented resolution order is:
+
+1. Architecture declared directly on the route.
+2. Architecture selected for the route's module.
+3. Matching architecture path rule.
+4. Global default.
+
+Confirm this precedence against the current implementation before relying on it in production.
+
+## 8. Compose mode
+
+Compose mode is documented as a way to run more than one kernel in a request chain.
+
+Illustrative fragment:
+
+```json
+{
+  "architecture": {
+    "compose": ["mvc", "cqrs"],
+    "strategy": "fallthrough"
+  }
+}
+```
+
+The existing documentation describes the `compose` list as taking precedence over the default, route, and module selections when enabled. It also describes a fallthrough strategy in which a kernel can allow the next kernel to handle the request.
+
+**Important:** kernel composition is not automatically equivalent to combining two complete frameworks. Each kernel must agree on request context, response handling, error propagation, and whether the chain continues. Verify these behaviors with tests for your version.
+
+If the repository includes `config/main.composite.json`, `CONFIG_PATH` can be set to that file to select it:
+
+```dotenv
+CONFIG_PATH=config/main.composite.json
+```
 
 ## 9. Routing
 
-Routes are declared in `routing.routes`, keyed by path pattern:
+The documented route format is a path-keyed map:
 
 ```json
-"routing": {
-  "routes": {
-    "/": { "methods": ["GET"], "handler": "App\\Controller\\HomeController@index" },
-    "/reports/{id}": { "methods": ["GET"], "handler": "App\\Controller\\ReportController@show" }
+{
+  "routing": {
+    "routes": {
+      "/": {
+        "methods": ["GET"],
+        "handler": "App\\Controller\\HomeController@index"
+      },
+      "/reports/{id}": {
+        "methods": ["GET"],
+        "handler": "App\\Controller\\ReportController@show"
+      }
+    }
   }
 }
 ```
 
-- `{param}` placeholders capture path segments and become `$request->attributes['params']['param']`.
-- `methods` is an array; `["*"]` matches all verbs.
-- `handler` is `"Class@method"` or a class name (for `__invoke`).
-- `architecture` (optional) overrides the pattern for that route.
-- `module` (optional) associates the route with a module for per-module switching.
+Documented route fields:
 
-Route matching is linear in declaration order.
+- `methods`: HTTP methods; the existing documentation also describes `["*"]` as matching all methods.
+- `handler`: a `Class@method` string or an invokable class, depending on the handler resolver.
+- `architecture`: optional route-level architecture override, if supported.
+- `module`: optional module identifier for module-level architecture selection, if supported.
 
----
+The existing documentation states that route matching follows declaration order. Avoid overlapping route patterns unless you have verified which route takes precedence.
 
-## 10. Dependency Injection Container
+## 10. Dependency injection
 
-`Nexus\Container\Container` is a small PSR-11-compatible container with auto-wiring.
+The documented container supports service bindings and automatic construction of eligible classes. The existing examples use a PSR-11-oriented API.
+
+Illustrative PHP:
 
 ```php
-$container->set(Foo::class, fn ($c) => new Foo($c->get(Bar::class)));
-$container->instance(Bar::class, new Bar());
-$container->get(Foo::class);       // resolves
-$container->has(Foo::class);       // true
+$container->set(
+    App\Contract\Mailer::class,
+    fn ($container) => new App\Mail\SmtpMailer()
+);
+
+$mailer = $container->get(App\Contract\Mailer::class);
 ```
 
-Bindings from `main.json`:
+Illustrative configuration binding:
 
 ```json
-"container": {
-  "bindings": {
-    "App\\Contract\\Mailer": "App\\Mail\\SmtpMailer"
+{
+  "container": {
+    "bindings": {
+      "App\\Contract\\Mailer": "App\\Mail\\SmtpMailer"
+    }
   }
 }
 ```
 
-Circular dependencies are detected and throw `ContainerException`. Non-instantiable classes throw as well. Missing services auto-wire if the class exists.
+Use the actual container API and namespace from the checked-out source. Automatic construction is not a replacement for explicit bindings when a service has scalar constructor arguments or other configuration requirements.
 
----
+## 11. Service providers
 
-## 11. Service Providers
+Service providers are intended to register services and perform boot-time setup. The existing documentation describes separate `register()` and `boot()` phases.
 
-Service providers follow the standard register/boot split:
+Example configuration:
 
-```php
-interface ServiceProviderInterface {
-    public function register(KernelContext $context): void;
-    public function boot(KernelContext $context): void;
+```json
+{
+  "providers": [
+    "App\\Provider\\AppServiceProvider"
+  ]
 }
 ```
 
-Register them in `main.json`:
-
-```json
-"providers": [
-  "App\\Provider\\AppServiceProvider"
-]
-```
-
-`register()` runs before `boot()`. All providers register before any boot, matching Laravel semantics.
-
----
+Implement the interface defined by the current source. Do not assume providers run in a particular order unless that order is documented and tested.
 
 ## 12. Adapters
 
-Adapters wire third-party packages into the container without rewriting them. Enable them in `main.json`:
+Adapters are integration layers for selected third-party packages. The documented adapter names include:
+
+- `illuminate`
+- `symfony`
+- `slim`
+- `laminas`
+- `doctrine`
+- `eloquent`
+- `twig`
+- `blade`
+- `latte`
+- `php-di`
+- `monolog`
+- `fastroute`
+- `league`
+
+Example configuration:
 
 ```json
-"adapters": ["illuminate", "symfony", "twig", "monolog"]
-```
-
-Supported adapters:
-
-| Name | Package | Service ID |
-|---|---|---|
-| `illuminate` | illuminate/container | `illuminate.container` |
-| `symfony` | symfony/event-dispatcher, http-foundation | `symfony.event_dispatcher`, `symfony.request` |
-| `slim` | slim/slim | `slim.app` |
-| `laminas` | laminas/laminas-servicemanager, laminas-diactoros | `laminas.service_manager`, `laminas.request` |
-| `doctrine` | doctrine/orm | `doctrine.entity_manager` |
-| `eloquent` | illuminate/database | `eloquent.capsule` |
-| `twig` | twig/twig | `twig` |
-| `blade` | illuminate/view | `blade.factory` |
-| `latte` | latte/latte | `latte` |
-| `php-di` | php-di/php-di | `phpdi.container` |
-| `monolog` | monolog/monolog | `monolog` |
-| `fastroute` | nikic/fast-route | `fastroute.dispatcher` |
-| `league` | league/container | `league.container` |
-
-Per-adapter options go in `adapters_options`:
-
-```json
-"adapters_options": {
-  "twig": { "paths": ["resources/views"], "cache": "storage/cache/twig" },
-  "eloquent": { "driver": "mysql", "host": "localhost", "database": "app", "username": "root", "password": "" },
-  "monolog": { "path": "storage/logs/app.log", "level": 100 }
+{
+  "adapters": ["illuminate", "symfony", "twig", "monolog"]
 }
 ```
 
-Adapters silently skip if the underlying package is not installed — unless auto-install is enabled.
-
----
-
-## 13. Plugin Bridges & Auto-Install
-
-A plugin bridge is a declared integration with third-party code:
-
-```php
-interface PluginBridgeInterface {
-    public function name(): string;
-    public function requires(): array;     // composer packages
-    public function register(KernelContext $context): void;
-}
-```
-
-Register in `main.json`:
+Optional adapter settings are documented under `adapters_options`. For example:
 
 ```json
-"plugins": {
-  "bridges": [
-    { "class": "Vendor\\Bridge\\StripeBridge", "requires": ["stripe/stripe-php"] }
-  ],
-  "auto_install": true
-}
-```
-
-If `auto_install` is `true`, missing packages listed in `requires` are installed via `composer require` at boot time. In production, prefer setting `auto_install: false` and installing manually.
-
----
-
-## 14. Error Panel
-
-The error panel appears when `app.debug = true` and `error_panel.enabled = true`. It renders exceptions as an HTML page with optional widgets.
-
-```json
-"error_panel": {
-  "enabled": true,
-  "theme": {
-    "primary": "#6d28d9",
-    "background": "#0f172a",
-    "foreground": "#e2e8f0",
-    "accent": "#22d3ee",
-    "logo": "https://example.com/logo.svg"
-  },
-  "widgets": {
-    "stack_trace": true,
-    "query_log": true,
-    "request_data": true,
-    "timings": true,
-    "resolved_pattern": true,
-    "config_state": true
+{
+  "adapters_options": {
+    "twig": {
+      "paths": ["resources/views"],
+      "cache": "storage/cache/twig"
+    }
   }
 }
 ```
 
-All theming comes from this object. `logo` accepts a URL or null. Widgets can be toggled individually. In production (`app.debug = false`) the panel is disabled and a plain "Internal Server Error" is returned.
+The supported service IDs, required Composer packages, and option names are version-dependent. Consult the adapter implementation and `composer.json` before using an adapter.
 
----
+**Compatibility limitation:** exposing a package through the container does not mean OmniCore can run that package's entire framework lifecycle or that all its components are interchangeable with another framework.
 
-## 15. Handlers & Responses
+## 13. Plugin bridges
 
-A handler is either a callable, an invokable class, or a `Class@method` string. All are passed `(Request $request, KernelContext $context)`.
+A plugin bridge is an integration point for a third-party package or service. The documented contract includes a name, a list of required Composer packages, and a registration method.
 
-Return values are normalized:
+Example configuration shape:
 
-| Return type | Response |
-|---|---|
-| `Nexus\Http\Response` | Passed through |
-| `array` or `object` | JSON-encoded (`Response::json`) |
-| `string` | Plain text (`Response::text`) |
+```json
+{
+  "plugins": {
+    "bridges": [
+      {
+        "class": "Vendor\\Bridge\\ExampleBridge",
+        "requires": ["vendor/package"]
+      }
+    ],
+    "auto_install": false
+  }
+}
+```
 
-`Response` constructors:
+Only use keys supported by the current implementation.
+
+### Dependency installation warning
+
+The older documentation describes an `auto_install` option that can run `composer require` during application startup. Automatically changing dependencies at runtime is risky and is not recommended for production. Prefer installing, reviewing, and locking dependencies during development or deployment, and keep automatic installation disabled unless you understand and explicitly accept its behavior.
+
+A plugin bridge is **not** a security sandbox. Treat third-party plugin code as executable application code with the permissions of the PHP process.
+
+## 14. Development error panel
+
+The documented error panel can display exception details and optional diagnostic widgets when debugging is enabled.
+
+Example configuration shape:
+
+```json
+{
+  "error_panel": {
+    "enabled": true,
+    "theme": {
+      "primary": "#6d28d9",
+      "background": "#0f172a",
+      "foreground": "#e2e8f0",
+      "accent": "#22d3ee"
+    },
+    "widgets": {
+      "stack_trace": true,
+      "request_data": true,
+      "timings": true
+    }
+  }
+}
+```
+
+This is illustrative; use only the keys and widgets implemented by your version.
+
+**Never expose stack traces, environment values, request secrets, SQL details, or configuration dumps to public users.** Disable debug mode and the development panel in production.
+
+## 15. Handlers and responses
+
+The existing documentation describes handlers as callables, invokable classes, or `Class@method` strings. It also describes normalizing common return values into responses.
+
+The documented response helpers include:
 
 ```php
 Response::html($body, $status = 200, $headers = []);
@@ -478,19 +503,29 @@ Response::text($body, $status = 200, $headers = []);
 Response::notFound();
 ```
 
----
+Verify the current `Response` class namespace, constructor signatures, supported return types, and handler arguments in source before copying this example into an application.
 
-## 16. Environment & Configuration Loading
+## 16. Environment variables
 
-`.env` is loaded via `vlucas/phpdotenv` in `Env::load()`. Access values through `nexus_env('KEY', $default)` or `Env::get()`. Values are typed: `true`, `false`, `null`, `empty` are converted.
+The existing documentation describes `.env` loading through `vlucas/phpdotenv` and selection of the active configuration through `CONFIG_PATH`.
 
-`CONFIG_PATH` selects the active `main.json`. This is the primary way to toggle between configurations (e.g. `main.json` vs `main.composite.json`) without touching PHP.
+Example:
 
----
+```dotenv
+APP_ENV=local
+APP_DEBUG=true
+CONFIG_PATH=config/main.json
+```
 
-## 17. Apache Setup
+- Use local environment files only for local development.
+- Keep `.env` out of version control.
+- Provide placeholders, not real secrets, in `.env.example`.
+- Use production environment variables or a secret-management system for deployment credentials.
+- Do not assume every variable shown in older examples is read by the current code.
 
-DocumentRoot → `public/`. Required `.htaccess` (already in `public/`):
+## 17. Apache configuration
+
+The documented deployment setup uses `public/` as the web document root. The `public/.htaccess` file may use rewrite rules similar to:
 
 ```apache
 <IfModule mod_rewrite.c>
@@ -501,232 +536,186 @@ DocumentRoot → `public/`. Required `.htaccess` (already in `public/`):
 </IfModule>
 ```
 
-If you cannot set DocumentRoot, URL form `http://localhost/project/public/` works because `.htaccess` rewrites all requests to `index.php`.
+Confirm the actual `.htaccess` file in the repository. Apache must allow the required overrides and have `mod_rewrite` enabled.
 
----
+For security, do not set the document root to the repository root if that would expose `.env`, source files, configuration, or other private files.
 
-## 18. Examples
+## 18. Extending OmniCore
 
-**Single pattern (MVC)**
+Before writing an extension, inspect the matching interface and examples in the current source.
 
-```json
-"architecture": { "default": "mvc" }
-```
+Common extension points described by the project:
 
-**Per-route switch**
+- **Custom architecture kernel:** implement the kernel contract and register it under `architecture.kernels`.
+- **Adapter:** implement the adapter contract and register the adapter in the adapter registry.
+- **Service provider:** implement the provider interface and add the class to `providers`.
+- **Plugin bridge:** implement the bridge contract and register it under `plugins.bridges`.
+- **Module:** implement the module contract and register it through the supported module registry.
 
-```json
-"architecture": {
-  "routes": {
-    "/api/users": "cqrs",
-    "/reports/{id}": "adr"
-  }
-}
-```
+The precise namespaces and method signatures may still contain the earlier `Nexus\` naming. Do not rename those references manually without also updating Composer autoload configuration, source namespaces, tests, and examples.
 
-**Per-module switch**
+## 19. Deployment and security
 
-```json
-"architecture": {
-  "modules": { "Billing": "hexagonal", "Auth": "mvc" }
-}
-```
+Before deploying:
 
-**Coexistence**
+1. Run the test suite available in the repository.
+2. Install dependencies from the committed lock file where one exists.
+3. Set production environment values and disable debug output.
+4. Keep `.env`, source code, configuration, logs, and cache outside the public document root where possible.
+5. Ensure runtime directories have only the permissions they need.
+6. Review every enabled adapter and plugin, including its package license and maintenance status.
+7. Do not install Composer packages automatically during web requests.
+8. Validate configuration and test error handling for unknown kernels, invalid routes, missing packages, and plugin failures.
+9. Back up data and test deployment procedures before upgrading.
 
-```json
-"architecture": {
-  "compose": ["mvc", "cqrs"],
-  "strategy": "fallthrough"
-}
-```
+The project is experimental; do not assume it is production-ready solely because a feature is described in this document.
 
-An MVC controller sets `$request->attributes['command']` and delegates to the `cqrs` kernel; the `CommandBus` dispatches it; the response goes back through the chain.
+## 20. Troubleshooting
 
----
-
-## 19. Extending the Framework
-
-**Add a custom pattern kernel**
-
-1. Implement `Nexus\Contracts\PatternKernelInterface`.
-2. Register it in `main.json`: `"architecture": { "kernels": { "my-kernel": "App\\Kernel\\MyKernel" } }`.
-
-**Add a custom adapter**
-
-1. Extend `Nexus\Adapters\Adapter`.
-2. Register the class in `AdapterRegistry::$classes`.
-3. Enable it in `main.json` `"adapters": [...]`.
-
-**Add a custom service provider**
-
-1. Implement `Nexus\Bootstrap\ServiceProviderInterface`.
-2. Add the class name to `"providers": [...]`.
-
-**Add a custom plugin bridge**
-
-1. Implement `Nexus\Contracts\PluginBridgeInterface`.
-2. Add a `{ "class": "...", "requires": [...] }` entry to `plugins.bridges`.
-
-**Add a custom module (modular pattern)**
-
-1. Implement `Nexus\Kernels\Modular\ModuleInterface`.
-2. Register it during boot in a provider:
-
-```php
-$registry = $context->container->get(ModuleRegistry::class);
-$registry->register(new BillingModule());
-```
-
----
-
-## 20. Packaging & Deployment
-
-**Build a deployable archive** (exclude vendor and runtime state):
-
-```
-zip -r project.zip . -x "vendor/*" "storage/*" ".env" ".git/*"
-```
-
-Windows PowerShell:
-
-```
-Compress-Archive -Path * -DestinationPath project.zip -Force
-```
-
-**On the target server**
-
-```
-unzip project.zip -d project
-cd project
-composer install --no-dev --optimize-autoloader
-cp .env.example .env
-# edit .env: APP_ENV=production, APP_DEBUG=false, CONFIG_PATH=config/main.json
-chmod -R 775 storage/
-```
-
-Set DocumentRoot to `public/`. Done.
-
----
-
-## 21. Troubleshooting
-
-| Symptom | Cause | Fix |
+| Symptom | Possible cause | Suggested check |
 |---|---|---|
-| `Class "Nexus\\Bootstrap\\KernelLoader" not found` | Missing `use` import in `ContextFactory.php` | Add `use Nexus\Kernel\KernelLoader;` |
-| 404 on all routes | `.htaccess` not honored | Enable `mod_rewrite` and `AllowOverride All` |
-| 500 without HTML panel | `app.debug = false` | Set `APP_DEBUG=true` for local |
-| Empty response on a route | Handler returned `null` | Return a string, array, or `Response` |
-| Container circular dependency | Two services require each other | Break the cycle with a factory |
-| `No route matched` | Path mismatch | Check `routing.routes` and `methods` |
+| Composer cannot install dependencies | PHP version or extension mismatch | Check `php -v`, `composer.json`, and Composer's error output |
+| All routes return 404 | Rewrite rules or route definitions are incorrect | Check `public/.htaccess`, Apache settings, path, and HTTP method |
+| HTTP 500 with no useful details | Debug mode is disabled or logs are unavailable | Inspect server logs; enable debugging only in a local environment |
+| Handler returns an empty response | Unsupported return value or handler mismatch | Check handler signature and response normalization |
+| Container cannot resolve a service | Missing binding or invalid class name | Check namespace, autoloading, and container bindings |
+| Architecture name is not recognized | Kernel is not registered or configuration is misspelled | Check `architecture.kernels` and the kernel registry |
+| Adapter appears unavailable | Required package is missing or adapter is disabled | Check Composer dependencies and adapter configuration |
+| Plugin bridge fails during boot | Missing dependency or invalid bridge implementation | Check the bridge contract, package list, and application logs |
+| `.env` changes have no effect | Wrong environment file or configuration path | Verify the working directory and `CONFIG_PATH` |
+
+Do not fix a runtime error by adding imports or changing namespaces based only on an error message; inspect the actual class location and Composer autoload configuration first.
+
+## 21. Contributing
+
+Contributions, bug reports, tests, and documentation improvements are welcome.
+
+Before opening a pull request:
+
+1. Explain the problem or proposed improvement.
+2. Include reproduction steps for bugs.
+3. Add or update tests when possible.
+4. Update documentation when public behavior or configuration changes.
+5. Avoid claiming compatibility unless it has been tested.
+6. Do not include secrets, local environment files, generated runtime data, or unrelated changes.
+
+Open issues and pull requests at: <https://github.com/amir-starX/OmniCore>
+
+## License and project status
+
+See the repository's [`LICENSE`](LICENSE) file for the legally authoritative license text. Keep the license stated here, in `README.md`, and in package metadata consistent with that file before publishing a release.
 
 ---
 
-**End of English documentation.**
+# مستندات OmniCore — راهنمای کامل
 
----
+**نوع پروژه:** فریم‌ورک PHP مبتنی بر پیکربندی و چندالگویی  
+**نسخهٔ موردنیاز PHP:** 8.2 یا جدیدتر  
+**وضعیت:** آزمایشی و در حال توسعه  
+**مجوز:** متن معتبر مجوز در فایل `LICENSE` مخزن قرار دارد.
 
-<div dir="rtl" align="right">
-
-# مستندات کامل فریمورک Nexus
-
-**نسخه:** ۱.۰
-**PHP:** 8.2 به بالا
-**مجوز:** MIT
-
-Nexus یک فریمورک PHP مبتنی بر پیکربندی و چند-پارادایمی است. یک فایل — `config/main.json` — معماری، مسیریابی، تزریق وابستگی، آداپترها، پلاگین‌ها و پنل خطا را کنترل می‌کند. می‌توانید الگوی معماری را به‌صورت سراسری، per-route، per-module یا هم‌زمان چند الگو در یک request تغییر دهید. فریمورک‌های موجود از طریق آداپتر ادغام می‌شوند، نه بازنویسی.
-
----
+> OmniCore با هدف فراهم‌کردن امکان انتخاب و ترکیب الگوهای معماری پشتیبانی‌شده از طریق تنظیمات ساخته شده است. این پروژه تمام فریم‌ورک‌های PHP را به‌طور کامل با هم ادغام نمی‌کند و وجود Adapter به معنی سازگاری کامل با تمام قابلیت‌های یک فریم‌ورک دیگر نیست.
 
 ## فهرست
 
-۱. مقدمه
-۲. پیش‌نیاز و نصب
-۳. ساختار پروژه
-۴. تنها منبع حقیقت: `main.json`
-۵. چرخه حیات request
-۶. الگوهای معماری (Kernelها)
-۷. سوییچ داغ الگوها
-۸. همزیستی (حالت Compose)
-۹. مسیریابی
-۱۰. کانتینر تزریق وابستگی
-۱۱. Service Providerها
-۱۲. آداپترها
-۱۳. پل‌های پلاگین و نصب خودکار
-۱۴. پنل خطا
-۱۵. هندلرها و Response
-۱۶. بارگذاری محیط و پیکربندی
-۱۷. تنظیم آپاچی
-۱۸. مثال‌ها
-۱۹. توسعه فریمورک
-۲۰. بسته‌بندی و استقرار
-۲۱. عیب‌یابی
+1. [معرفی](#معرفی)
+2. [پیش‌نیازها و نصب](#پیشنیازها-و-نصب)
+3. [ساختار پروژه](#ساختار-پروژه)
+4. [تنظیمات](#تنظیمات)
+5. [چرخهٔ درخواست](#چرخهٔ-درخواست)
+6. [الگوهای معماری](#الگوهای-معماری)
+7. [انتخاب معماری](#انتخاب-معماری)
+8. [حالت Compose](#حالت-compose)
+9. [مسیریابی](#مسیریابی)
+10. [تزریق وابستگی](#تزریق-وابستگی)
+11. [Service Providerها](#service-providerها)
+12. [Adapterها](#adapterها)
+13. [پل‌های پلاگین](#پلهای-پلاگین)
+14. [پنل خطای توسعه](#پنل-خطای-توسعه)
+15. [Handler و Response](#handler-و-response)
+16. [متغیرهای محیطی](#متغیرهای-محیطی)
+17. [تنظیم Apache](#تنظیم-apache)
+18. [گسترش OmniCore](#گسترش-omnicore)
+19. [استقرار و امنیت](#استقرار-و-امنیت)
+20. [عیب‌یابی](#عیبیابی)
+21. [مشارکت](#مشارکت)
+22. [مجوز و وضعیت پروژه](#مجوز-و-وضعیت-پروژه)
 
 ---
 
-## ۱. مقدمه
+## معرفی
 
-Nexus فریمورکی نیست که شما را به یک معماری خاص محدود کند. معماری را به‌عنوان پیکربندی زمان اجرا در نظر می‌گیرد. همان کد می‌تواند یک صفحه MVC، یک endpoint API با CQRS، یک گزارش ADR و یک ماژول hexagonal را هم‌زمان در یک استقرار ارائه دهد — همه از طریق `main.json`.
+OmniCore یک فریم‌ورک PHP مبتنی بر تنظیمات است که هدف آن پشتیبانی از چند الگوی معماری در یک کدبیس است. بسته به قابلیت‌های پیاده‌سازی‌شده در نسخهٔ مورد استفاده، می‌توان معماری را به‌صورت سراسری، برای مسیر یا برای ماژول انتخاب کرد.
 
-اصول اصلی:
+اهداف اصلی:
 
-- **پیکربندی به‌جای کد.** تغییرات رفتار از `main.json` می‌آید، نه ویرایش فایل‌های PHP.
-- **الگوهای قابل سوییچ داغ.** سراسری، per-route، per-module و همزیستی.
-- **آداپتر به‌جای بازنویسی.** Symfony، Illuminate، Slim، Laminas، Doctrine، Twig و … بسته‌بندی می‌شوند نه بازنویسی.
-- **هسته مینیمال.** کوچک، strict، typed، سازگار با PSR.
-- **تجربه توسعه‌دهنده با تم قابل تنظیم.** پنل خطا کاملاً از `main.json` هدایت می‌شود.
+- **رفتار مبتنی بر تنظیمات:** تنظیم قابلیت‌های پشتیبانی‌شده از طریق `config/main.json`.
+- **چند الگوی معماری:** استفاده از Kernel مناسب برای مسیر یا ماژول.
+- **قابلیت توسعه:** ثبت Kernel سفارشی، Service Provider، Adapter و Plugin Bridge از طریق قراردادهای مشخص.
+- **ادغام به‌جای بازنویسی:** اتصال کتابخانه‌های منتخب از طریق Adapter.
+- **جداسازی مسئولیت‌ها:** جدا نگه‌داشتن کد برنامه از هستهٔ فریم‌ورک.
 
----
+### محدودیت مهم
 
-## ۲. پیش‌نیاز و نصب
+نام الگوها و بسته‌های شخص ثالث در این مستند، قراردادها و نقاط اتصال توصیف‌شدهٔ پروژه را نشان می‌دهد؛ نه تضمین پشتیبانی کامل از تمام امکانات آن‌ها. برای اطمینان، سورس، وابستگی‌ها و تست‌های همان نسخه را بررسی کنید.
 
-**پیش‌نیازها**
+## پیش‌نیازها و نصب
 
-- PHP 8.2 یا جدیدتر
+### پیش‌نیازها
+
+- PHP نسخهٔ 8.2 یا جدیدتر
 - Composer
-- Apache با `mod_rewrite` فعال
-- دسترسی نوشتن به `storage/cache` و `storage/logs`
+- Apache با `mod_rewrite` فعال، در صورت استفاده از تنظیمات Apache این راهنما
+- دسترسی نوشتن به پوشه‌های زمان اجرا مانند `storage/cache` و `storage/logs`
 
-**نصب**
+بعضی Adapterها به پکیج‌های Composer جداگانه نیاز دارند.
 
-```
-git clone <repo> project
-cd project
+### دریافت پروژه
+
+```bash
+git clone https://github.com/amir-starX/OmniCore.git
+cd OmniCore
 composer install
+```
+
+اگر فایل `.env.example` در نسخهٔ شما وجود دارد:
+
+```bash
 cp .env.example .env
 ```
 
-ویرایش `.env`:
+قبل از اجرا، فایل‌های `.env` و `config/main.json` را بررسی کنید. رمزها و کلیدهای واقعی را در Git ثبت نکنید.
 
-```
+نمونهٔ تنظیمات محیطی:
+
+```dotenv
 APP_ENV=local
 APP_DEBUG=true
-APP_KEY=base64:CHANGE_ME
 APP_URL=http://localhost
 CONFIG_PATH=config/main.json
 ```
 
-DocumentRoot آپاچی را به `public/` تنظیم کنید، یا از مسیر `http://localhost/project/public/` استفاده کنید.
+فقط از متغیرهایی استفاده کنید که سورس نسخهٔ فعلی واقعاً می‌خواند. برای مثال، اگر برنامه یا یکی از پکیج‌های فعال از `APP_KEY` استفاده نمی‌کند، آن را بدون دلیل ضروری فرض نکنید.
 
----
+## ساختار پروژه
 
-## ۳. ساختار پروژه
+ساختار مستندشدهٔ پروژه به‌صورت تقریبی:
 
-```
-project/
-├── app/                    کد برنامه (namespace App\)
+```text
+OmniCore/
+├── app/
 │   ├── Controller/
 │   ├── Cqrs/
 │   ├── Module/
 │   ├── Provider/
 │   └── Kernel/
 ├── config/
-│   ├── main.json           پیکربندی اصلی
-│   └── main.composite.json حالت compose
+│   ├── main.json
+│   └── main.composite.json
 ├── public/
-│   ├── index.php           فرانت کنترلر
-│   └── .htaccess           قواعد rewrite
-├── src/                    هسته فریمورک (namespace Nexus\)
+│   ├── index.php
+│   └── .htaccess
+├── src/
 │   ├── Adapters/
 │   ├── Bootstrap/
 │   ├── Config/
@@ -736,365 +725,370 @@ project/
 │   ├── Exception/
 │   ├── Http/
 │   ├── Kernel/
-│   ├── Kernels/            پیاده‌سازی الگوها
+│   ├── Kernels/
 │   ├── Plugins/
 │   ├── Routing/
 │   └── Support/
 ├── storage/
 │   ├── cache/
 │   └── logs/
-├── .env
 ├── .env.example
 ├── composer.json
+├── DOCUMENTATION.md
 └── README.md
 ```
 
----
+این ساختار نمونه‌ای بر اساس مستندات قبلی است؛ در صورت تغییر پروژه، درخت واقعی ریپازیتوری ملاک است.
 
-## ۴. تنها منبع حقیقت: `main.json`
+**نکته دربارهٔ Namespace:** ممکن است بعضی کلاس‌ها و مثال‌ها هنوز از Namespace قدیمی `Nexus\` استفاده کنند. تغییر نام ریپازیتوری در GitHub، Namespaceهای PHP، تنظیمات Autoload در Composer یا ارجاع‌های کلاس را خودکار تغییر نمی‌دهد. پیش از تغییر آن‌ها، `composer.json` و سورس را بررسی کنید.
 
-همه‌چیز از `config/main.json` هدایت می‌شود. بخش‌های سطح بالا:
+## تنظیمات
+
+فایل اصلی تنظیمات `config/main.json` است. بخش‌های مستندشده عبارت‌اند از:
 
 | بخش | کاربرد |
 |---|---|
-| `app` | نام، محیط، debug، کلید |
-| `architecture` | الگوی پیش‌فرض، per-route، per-module، زنجیره compose |
+| `app` | محیط اجرا و تنظیمات اشکال‌زدایی |
+| `architecture` | معماری پیش‌فرض، تنظیم مسیر و ماژول، Kernelهای سفارشی و ترکیب |
 | `routing` | تعریف مسیرها |
-| `container` | bindingهای کانتینر |
-| `providers` | کلاس‌های service provider |
-| `adapters` | آداپترهای فعال (لیست نام‌ها) |
-| `adapters_options` | تنظیمات هر آداپتر (Doctrine، Eloquent، Twig و …) |
-| `plugins` | پل‌های پلاگین و پرچم نصب خودکار |
-| `error_panel` | تم، ویجت‌ها، پرچم فعال‌سازی |
+| `container` | اتصال سرویس‌ها به Container |
+| `providers` | کلاس‌های Service Provider |
+| `adapters` | نام Adapterهای فعال |
+| `adapters_options` | تنظیمات اختصاصی Adapterها |
+| `plugins` | پل‌های پلاگین و گزینه‌های مرتبط |
+| `error_panel` | تنظیمات پنل خطای توسعه |
 
-تغییر `main.json` به‌تنهایی رفتار runtime را عوض می‌کند. برای جریان‌های استاندارد نیازی به ویرایش PHP نیست.
+قواعد مهم:
 
----
+- JSON باید معتبر باشد؛ کلیدها و رشته‌ها با دابل‌کوتیشن نوشته می‌شوند و JSON استاندارد کامنت ندارد.
+- فقط گزینه‌های پیاده‌سازی‌شده در نسخهٔ فعلی را استفاده کنید.
+- قبل از استقرار، تنظیمات را اعتبارسنجی کنید.
+- اطلاعات محرمانه را در فایل‌های قابل‌انتشار ذخیره نکنید.
+- `CONFIG_PATH` مسیر فایل تنظیمات فعال را مشخص می‌کند؛ این متغیر قابلیت پیاده‌سازی‌نشده‌ای را ایجاد نمی‌کند.
 
-## ۵. چرخه حیات request
+نمونهٔ ساده از تنظیم معماری:
 
+```json
+{
+  "architecture": {
+    "default": "mvc",
+    "routes": {
+      "/api/users": "cqrs",
+      "/reports/{id}": "adr"
+    },
+    "modules": {
+      "Billing": "hexagonal"
+    },
+    "compose": []
+  }
+}
 ```
-Apache
+
+این قطعه یک تنظیم کامل نیست؛ آن را با ساختار مورد انتظار نسخهٔ فعلی ترکیب کنید.
+
+## چرخهٔ درخواست
+
+جریان کلی درخواست در مستندات قبلی به این شکل توصیف شده است:
+
+```text
+وب‌سرور
   └── public/index.php
-        └── Application::create($basePath)
-              ├── Env::load()
-              ├── ConfigLoader::load()        ← main.json
-              └── ContextFactory::build()
-                    ├── ContainerFactory::build()
-                    ├── RouterFactory::build()
-                    ├── PatternResolver + KernelRegistry + CompositeKernel
-                    ├── KernelLoader::register()       ← همه Kernelها
-                    ├── AdapterRegistry::boot()        ← آداپترهای فعال
-                    ├── BridgeBootstrapper::boot()     ← پل‌های پلاگین
-                    └── ProviderLoader::register/boot()
-        └── Application::handle($uri, $method)
-              └── Dispatcher::dispatch()
-                    ├── Router::match()             ← بازگشت Request
-                    └── CompositeKernel::handle()
-                          ├── PatternResolver::chain()   ← resolve الگو(ها)
-                          └── برای هر Kernel در زنجیره: Kernel::handle()
-                                └── HandlerResolver::invoke()
-                                      └── Response
-        └── ResponseEmitter::send()
+        └── راه‌اندازی برنامه
+              ├── بارگذاری محیط
+              ├── بارگذاری تنظیمات
+              ├── ساخت Context برنامه
+              ├── ساخت Container و Router
+              ├── ثبت Kernelهای معماری
+              ├── راه‌اندازی Adapterها و Plugin Bridgeها
+              └── ثبت و راه‌اندازی Providerها
+        └── تطبیق مسیر درخواست
+              └── انتخاب Kernel یا زنجیرهٔ Kernelها
+                    └── پیدا کردن و اجرای Handler
+                          └── ساخت Response
+        └── ارسال Response
 ```
 
-request یک بار match می‌شود، زنجیره الگو یک بار resolve می‌شود و هر Kernel در زنجیره همان `KernelContext` را می‌گیرد. `Response` قبلی به‌عنوان `RequestContext::previous` به Kernel بعدی داده می‌شود و امکان fallthrough را فراهم می‌کند.
+این نمودار مفهومی است و ممکن است همهٔ فراخوانی‌های داخلی نسخهٔ فعلی را نشان ندهد. برای تکیه بر ترتیب دقیق اجرا، سورس را بررسی کنید.
 
----
+## الگوهای معماری
 
-## ۶. الگوهای معماری (Kernelها)
+در مستندات فعلی، الگوهای زیر معرفی شده‌اند:
 
-هر الگو `PatternKernelInterface` را پیاده می‌کند:
-
-```php
-interface PatternKernelInterface {
-    public function name(): string;
-    public function supports(RequestContext $ctx): bool;
-    public function handle(KernelContext $context, RequestContext $ctx): Response;
-}
-```
-
-Kernelهای داخلی:
-
-| نام | معناشناسی |
+| الگو | کاربرد موردنظر |
 |---|---|
-| `mvc` | متد Controller درخواست را مدیریت می‌کند |
-| `hmvc` | مثل MVC به‌همراه انتقال ماژول (`hmvc.module`) |
-| `adr` | Action درخواست را مدیریت می‌کند (هندلر همان action است) |
-| `cqrs` | در صورت وجود `CommandBus`، command را ارسال می‌کند |
-| `hexagonal` | پورت‌های پیکربندی‌شده را به‌عنوان attribute به request می‌چسباند و سپس فراخوانی می‌کند |
-| `microkernel` | همه پلاگین‌های ثبت‌شده را boot می‌کند و سپس فراخوانی می‌کند |
-| `layered` | پایپ‌لاین لایه‌های پیکربندی‌شده را اجرا می‌کند |
-| `event-driven` | هندلر را فراخوانی و سپس رویدادهای صف‌شده را dispatch می‌کند |
-| `modular` | همه ماژول‌ها (یا یک ماژول خاص) را boot می‌کند و فراخوانی می‌کند |
+| `mvc` | اجرای Handler مربوط به Controller |
+| `hmvc` | پردازش شبیه MVC همراه با Context ماژول |
+| `adr` | استفاده از Action به‌عنوان Handler |
+| `cqrs` | ارسال Command در صورت پیکربندی Command Bus سازگار |
+| `hexagonal` | در دسترس قراردادن Portهای پیکربندی‌شده برای Handler |
+| `microkernel` | ادغام پلاگین‌های ثبت‌شده در پردازش درخواست |
+| `layered` | اجرای درخواست از میان زنجیره‌ای از لایه‌ها |
+| `event-driven` | ارسال رویدادهای صف‌شده پس از اجرای Handler |
+| `modular` | راه‌اندازی ماژول‌های ثبت‌شده پیش از پردازش |
 
-Kernel سفارشی از طریق `architecture.kernels` ثبت می‌شود:
+این نام‌ها رفتار موردنظر را توضیح می‌دهند؛ تضمین نمی‌کنند که هر الگو تمام اصول معماری مربوطه را پیاده‌سازی کرده یا برای محیط Production آماده است.
 
-```json
-"architecture": {
-  "kernels": {
-    "my-pattern": "App\\Kernel\\MyPatternKernel"
-  }
-}
-```
+### Kernel سفارشی
 
-هر کلاسی که `PatternKernelInterface` را پیاده کند پذیرفته می‌شود.
+نقطهٔ توسعهٔ معرفی‌شده در مستندات `PatternKernelInterface` است. پیش از ساخت Kernel سفارشی، Namespace و امضای دقیق متدها را از سورس نسخهٔ فعلی بخوانید؛ ممکن است مثال‌های قدیمی هنوز از `Nexus\` استفاده کنند.
 
----
-
-## ۷. سوییچ داغ الگوها
-
-**سراسری** — برای همه:
+شکل تنظیمات ثبت Kernel سفارشی:
 
 ```json
-"architecture": { "default": "mvc" }
-```
-
-**per-route** — کلید بر اساس الگوی مسیر:
-
-```json
-"architecture": {
-  "routes": {
-    "/api/users": "cqrs",
-    "/admin": "hmvc",
-    "/reports/{id}": "adr"
-  }
-}
-```
-
-مسیر می‌تواند الگو را درون خود تعریف کند:
-
-```json
-"routing": {
-  "routes": {
-    "/api/users": {
-      "methods": ["POST"],
-      "handler": "App\\Controller\\UsersController@create",
-      "architecture": "cqrs"
+{
+  "architecture": {
+    "kernels": {
+      "my-pattern": "App\\Kernel\\MyPatternKernel"
     }
   }
 }
 ```
 
-**per-module** — کلید بر اساس نام ماژول:
+این قطعه را در تنظیمات اصلی ادغام کنید.
+
+## انتخاب معماری
+
+### معماری پیش‌فرض
 
 ```json
-"architecture": {
-  "modules": {
-    "Billing": "hexagonal",
-    "Auth": "mvc"
+{
+  "architecture": {
+    "default": "mvc"
   }
 }
 ```
 
-ترتیب resolve:
-
-۱. فیلد `architecture` در سطح مسیر.
-۲. تطابق ماژول (`architecture.modules[route.module]`).
-۳. تطابق مسیر (`architecture.routes[path]`).
-۴. پیش‌فرض سراسری (`architecture.default`).
-
----
-
-## ۸. همزیستی (حالت Compose)
-
-همزیستی چند الگو را در یک request اجرا می‌کند:
+### انتخاب معماری بر اساس مسیر
 
 ```json
-"architecture": {
-  "compose": ["mvc", "cqrs"],
-  "strategy": "fallthrough"
-}
-```
-
-وقتی `compose` غیرخالی باشد، برای **همه** requestها جایگزین default/routes/modules می‌شود. هر Kernel در زنجیره `Response` قبلی را به‌عنوان `RequestContext::previous` می‌گیرد. اگر Kernel پاسخی برگرداند، زنجیره متوقف می‌شود. `strategy: "fallthrough"` یعنی هر Kernel خودش تصمیم می‌گیرد پاسخ بدهد یا به بعدی واگذار کند.
-
-ترکیب معمول: یک کنترلر MVC با تنظیم `$request->attributes['command']` یک `Command` ارسال می‌کند. Kernel `cqrs` با دیدن command آن را از طریق `CommandBus` ارسال و نتیجه را برمی‌گرداند. یک request، دو الگو.
-
-برای سوییچ سراسری به حالت همزیستی، در `.env` مقدار `CONFIG_PATH=config/main.composite.json` را بگذارید.
-
----
-
-## ۹. مسیریابی
-
-مسیرها در `routing.routes` با کلید الگوی مسیر تعریف می‌شوند:
-
-```json
-"routing": {
-  "routes": {
-    "/": { "methods": ["GET"], "handler": "App\\Controller\\HomeController@index" },
-    "/reports/{id}": { "methods": ["GET"], "handler": "App\\Controller\\ReportController@show" }
+{
+  "architecture": {
+    "routes": {
+      "/api/users": "cqrs",
+      "/admin": "hmvc",
+      "/reports/{id}": "adr"
+    }
   }
 }
 ```
 
-- `{param}` یک segment مسیر را می‌گیرد و به `$request->attributes['params']['param']` تبدیل می‌شود.
-- `methods` یک آرایه است؛ `["*"]` همه متدها را می‌پذیرد.
-- `handler` به‌صورت `"Class@method"` یا نام کلاس (برای `__invoke`) است.
-- `architecture` (اختیاری) الگوی همان مسیر را override می‌کند.
-- `module` (اختیاری) مسیر را به یک ماژول برای سوییچ per-module متصل می‌کند.
+### انتخاب معماری بر اساس ماژول
 
-تطابق مسیر به ترتیب تعریف، خطی است.
+```json
+{
+  "architecture": {
+    "modules": {
+      "Billing": "hexagonal",
+      "Auth": "mvc"
+    }
+  }
+}
+```
 
----
+در صورت پشتیبانی Router، یک مسیر می‌تواند فیلد `architecture` را مستقیماً در تعریف خودش داشته باشد.
 
-## ۱۰. کانتینر تزریق وابستگی
+ترتیب اولویت مستندشده:
 
-`Nexus\Container\Container` یک کانتینر کوچک سازگار با PSR-11 با auto-wiring است.
+1. معماری تعریف‌شده در خود مسیر.
+2. معماری مربوط به ماژول مسیر.
+3. قاعدهٔ معماری منطبق با مسیر.
+4. معماری پیش‌فرض برنامه.
+
+پیش از اتکا به این ترتیب در Production، آن را با پیاده‌سازی فعلی تطبیق دهید.
+
+## حالت Compose
+
+حالت Compose برای اجرای چند Kernel در زنجیرهٔ یک درخواست معرفی شده است.
+
+نمونه:
+
+```json
+{
+  "architecture": {
+    "compose": ["mvc", "cqrs"],
+    "strategy": "fallthrough"
+  }
+}
+```
+
+طبق مستندات قبلی، فعال‌بودن `compose` می‌تواند انتخاب پیش‌فرض، مسیر و ماژول را تحت‌تأثیر قرار دهد. همچنین در حالت `fallthrough` یک Kernel ممکن است اجازه دهد Kernel بعدی درخواست را بررسی کند.
+
+**توجه:** زنجیره‌کردن Kernelها به‌خودی‌خود به معنی ترکیب کامل دو فریم‌ورک نیست. هر Kernel باید دربارهٔ Request Context، Response، مدیریت خطا و ادامه یا توقف زنجیره رفتار سازگار داشته باشد. این موارد را با تست بررسی کنید.
+
+اگر فایل `config/main.composite.json` در پروژه موجود است، می‌توان از آن به‌عنوان تنظیم فعال استفاده کرد:
+
+```dotenv
+CONFIG_PATH=config/main.composite.json
+```
+
+## مسیریابی
+
+قالب مستندشدهٔ مسیرها:
+
+```json
+{
+  "routing": {
+    "routes": {
+      "/": {
+        "methods": ["GET"],
+        "handler": "App\\Controller\\HomeController@index"
+      },
+      "/reports/{id}": {
+        "methods": ["GET"],
+        "handler": "App\\Controller\\ReportController@show"
+      }
+    }
+  }
+}
+```
+
+فیلدهای معرفی‌شده:
+
+- `methods`: متدهای HTTP؛ مستندات قبلی `["*"]` را برای همهٔ متدها ذکر می‌کند.
+- `handler`: رشتهٔ `Class@method` یا کلاس قابل فراخوانی، بسته به Handler Resolver.
+- `architecture`: بازنویسی اختیاری معماری مسیر، در صورت پشتیبانی.
+- `module`: شناسهٔ اختیاری ماژول برای انتخاب معماری ماژول، در صورت پشتیبانی.
+
+مستندات قبلی تطبیق مسیر را بر اساس ترتیب تعریف توصیف می‌کند. از مسیرهای هم‌پوشان استفاده نکنید مگر اینکه اولویت آن‌ها را بررسی کرده باشید.
+
+## تزریق وابستگی
+
+طبق مستندات، Container از اتصال سرویس‌ها و ساخت خودکار کلاس‌های واجد شرایط پشتیبانی می‌کند. API واقعی را از سورس بررسی کنید.
+
+نمونهٔ مفهومی:
 
 ```php
-$container->set(Foo::class, fn ($c) => new Foo($c->get(Bar::class)));
-$container->instance(Bar::class, new Bar());
-$container->get(Foo::class);
-$container->has(Foo::class);
+$container->set(
+    App\Contract\Mailer::class,
+    fn ($container) => new App\Mail\SmtpMailer()
+);
+
+$mailer = $container->get(App\Contract\Mailer::class);
 ```
 
-bindingها از `main.json`:
+نمونهٔ اتصال در تنظیمات:
 
 ```json
-"container": {
-  "bindings": {
-    "App\\Contract\\Mailer": "App\\Mail\\SmtpMailer"
+{
+  "container": {
+    "bindings": {
+      "App\\Contract\\Mailer": "App\\Mail\\SmtpMailer"
+    }
   }
 }
 ```
 
-وابستگی چرخه‌ای تشخیص داده شده و `ContainerException` می‌دهد. کلاس‌های غیرقابل نمونه‌سازی هم استثنا می‌دهند. سرویس‌های غایب در صورت وجود کلاس auto-wire می‌شوند.
+ساخت خودکار جایگزین اتصال صریح سرویس‌هایی نیست که به مقادیر پیکربندی یا آرگومان‌های scalar نیاز دارند.
 
----
+## Service Providerها
 
-## ۱۱. Service Providerها
+هدف Service Provider ثبت سرویس‌ها و انجام تنظیمات زمان راه‌اندازی است. مستندات قبلی دو مرحلهٔ `register()` و `boot()` را معرفی می‌کند.
 
-Service providerها از الگوی register/boot پیروی می‌کنند:
+نمونهٔ تنظیمات:
 
-```php
-interface ServiceProviderInterface {
-    public function register(KernelContext $context): void;
-    public function boot(KernelContext $context): void;
+```json
+{
+  "providers": [
+    "App\\Provider\\AppServiceProvider"
+  ]
 }
 ```
 
-در `main.json` ثبت کنید:
+Interface و ترتیب اجرای واقعی را از سورس بررسی کنید؛ تا زمانی که ترتیب به‌صورت رسمی تعریف و تست نشده، به آن وابسته نشوید.
+
+## Adapterها
+
+Adapterها لایهٔ اتصال به پکیج‌های منتخب شخص ثالث هستند. نام‌های معرفی‌شده در مستندات شامل موارد زیر است:
+
+`illuminate`، `symfony`، `slim`، `laminas`، `doctrine`، `eloquent`، `twig`، `blade`، `latte`، `php-di`، `monolog`، `fastroute` و `league`.
+
+نمونهٔ فعال‌سازی:
 
 ```json
-"providers": [
-  "App\\Provider\\AppServiceProvider"
-]
-```
-
-`register()` قبل از `boot()` اجرا می‌شود. همه providerها قبل از هر boot ثبت می‌شوند (مطابق معناشناسی Laravel).
-
----
-
-## ۱۲. آداپترها
-
-آداپترها پکیج‌های third-party را بدون بازنویسی به کانتینر وصل می‌کنند. در `main.json` فعال کنید:
-
-```json
-"adapters": ["illuminate", "symfony", "twig", "monolog"]
-```
-
-آداپترهای پشتیبانی‌شده:
-
-| نام | پکیج | Service ID |
-|---|---|---|
-| `illuminate` | illuminate/container | `illuminate.container` |
-| `symfony` | symfony/event-dispatcher, http-foundation | `symfony.event_dispatcher`, `symfony.request` |
-| `slim` | slim/slim | `slim.app` |
-| `laminas` | laminas/laminas-servicemanager, laminas-diactoros | `laminas.service_manager`, `laminas.request` |
-| `doctrine` | doctrine/orm | `doctrine.entity_manager` |
-| `eloquent` | illuminate/database | `eloquent.capsule` |
-| `twig` | twig/twig | `twig` |
-| `blade` | illuminate/view | `blade.factory` |
-| `latte` | latte/latte | `latte` |
-| `php-di` | php-di/php-di | `phpdi.container` |
-| `monolog` | monolog/monolog | `monolog` |
-| `fastroute` | nikic/fast-route | `fastroute.dispatcher` |
-| `league` | league/container | `league.container` |
-
-تنظیمات هر آداپتر در `adapters_options`:
-
-```json
-"adapters_options": {
-  "twig": { "paths": ["resources/views"], "cache": "storage/cache/twig" },
-  "eloquent": { "driver": "mysql", "host": "localhost", "database": "app", "username": "root", "password": "" },
-  "monolog": { "path": "storage/logs/app.log", "level": 100 }
+{
+  "adapters": ["illuminate", "symfony", "twig", "monolog"]
 }
 ```
 
-اگر پکیج نصب نباشد، آداپتر بی‌صدا رد می‌شود — مگر اینکه نصب خودکار فعال باشد.
-
----
-
-## ۱۳. پل‌های پلاگین و نصب خودکار
-
-پل پلاگین یک ادغام اعلام‌شده با کد third-party است:
-
-```php
-interface PluginBridgeInterface {
-    public function name(): string;
-    public function requires(): array;     // پکیج‌های composer
-    public function register(KernelContext $context): void;
-}
-```
-
-در `main.json` ثبت کنید:
+تنظیمات اختصاصی Adapterها در `adapters_options` قرار می‌گیرند. برای مثال:
 
 ```json
-"plugins": {
-  "bridges": [
-    { "class": "Vendor\\Bridge\\StripeBridge", "requires": ["stripe/stripe-php"] }
-  ],
-  "auto_install": true
-}
-```
-
-اگر `auto_install` برابر `true` باشد، پکیج‌های غایب فهرست‌شده در `requires` در زمان boot از طریق `composer require` نصب می‌شوند. در production ترجیحاً `auto_install: false` و نصب دستی.
-
----
-
-## ۱۴. پنل خطا
-
-پنل خطا زمانی نمایش داده می‌شود که `app.debug = true` و `error_panel.enabled = true`. استثناها را به‌صورت HTML با ویجت‌های اختیاری رندر می‌کند.
-
-```json
-"error_panel": {
-  "enabled": true,
-  "theme": {
-    "primary": "#6d28d9",
-    "background": "#0f172a",
-    "foreground": "#e2e8f0",
-    "accent": "#22d3ee",
-    "logo": "https://example.com/logo.svg"
-  },
-  "widgets": {
-    "stack_trace": true,
-    "query_log": true,
-    "request_data": true,
-    "timings": true,
-    "resolved_pattern": true,
-    "config_state": true
+{
+  "adapters_options": {
+    "twig": {
+      "paths": ["resources/views"],
+      "cache": "storage/cache/twig"
+    }
   }
 }
 ```
 
-تمام تم از این شیء می‌آید. `logo` یک URL یا `null` می‌پذیرد. ویجت‌ها تک‌تک قابل خاموش/روشن هستند. در production (`app.debug = false`) پنل غیرفعال است و «Internal Server Error» ساده برمی‌گردد.
+شناسهٔ سرویس‌ها، وابستگی‌های Composer و نام گزینه‌ها ممکن است با نسخه تغییر کنند. پیش از استفاده، کد Adapter و `composer.json` را بررسی کنید.
 
----
+**محدودیت سازگاری:** قرار دادن یک پکیج در Container به معنی اجرای کامل چرخهٔ عمر فریم‌ورک اصلی آن یا سازگاری تمام اجزایش با سایر فریم‌ورک‌ها نیست.
 
-## ۱۵. هندلرها و Response
+## پل‌های پلاگین
 
-هندلر یا callable است، یا کلاس invokable، یا رشته `Class@method`. همه `(Request $request, KernelContext $context)` دریافت می‌کنند.
+Plugin Bridge نقطهٔ اتصال یک پکیج یا سرویس شخص ثالث است. قرارداد معرفی‌شده شامل نام، فهرست وابستگی‌های Composer و متد ثبت است.
 
-مقادیر بازگشتی نرمال می‌شوند:
+نمونهٔ شکل تنظیمات:
 
-| نوع بازگشتی | Response |
-|---|---|
-| `Nexus\Http\Response` | عبور مستقیم |
-| `array` یا `object` | تبدیل به JSON (`Response::json`) |
-| `string` | متن ساده (`Response::text`) |
+```json
+{
+  "plugins": {
+    "bridges": [
+      {
+        "class": "Vendor\\Bridge\\ExampleBridge",
+        "requires": ["vendor/package"]
+      }
+    ],
+    "auto_install": false
+  }
+}
+```
 
-سازنده‌های `Response`:
+فقط کلیدهایی را استفاده کنید که نسخهٔ فعلی پشتیبانی می‌کند.
+
+### هشدار نصب وابستگی
+
+مستندات قدیمی گزینه‌ای به نام `auto_install` را توصیف می‌کند که ممکن است هنگام راه‌اندازی برنامه دستور `composer require` اجرا کند. تغییر خودکار وابستگی‌ها در زمان اجرای وب‌سایت ریسک دارد و برای Production توصیه نمی‌شود. نصب، بررسی و قفل‌کردن وابستگی‌ها را در مرحلهٔ توسعه یا استقرار انجام دهید و نصب خودکار را غیرفعال نگه دارید، مگر اینکه رفتار آن را کاملاً بشناسید.
+
+Plugin Bridge یک **Sandbox امنیتی** نیست. کد پلاگین شخص ثالث را کدی اجرایی با دسترسی‌های فرایند PHP در نظر بگیرید.
+
+## پنل خطای توسعه
+
+پنل خطا برای نمایش جزئیات Exception و اطلاعات عیب‌یابی هنگام توسعه معرفی شده است.
+
+نمونهٔ مفهومی تنظیمات:
+
+```json
+{
+  "error_panel": {
+    "enabled": true,
+    "theme": {
+      "primary": "#6d28d9",
+      "background": "#0f172a",
+      "foreground": "#e2e8f0",
+      "accent": "#22d3ee"
+    },
+    "widgets": {
+      "stack_trace": true,
+      "request_data": true,
+      "timings": true
+    }
+  }
+}
+```
+
+این نمونه صرفاً برای توضیح شکل تنظیمات است؛ فقط گزینه‌ها و Widgetهای پیاده‌سازی‌شده را استفاده کنید.
+
+**در محیط Production، Stack Trace، اطلاعات محیطی، رمزها، جزئیات SQL یا محتوای حساس تنظیمات را به کاربران نمایش ندهید.** حالت Debug و پنل توسعه را غیرفعال کنید.
+
+## Handler و Response
+
+مستندات قبلی Handler را به‌صورت Callable، کلاس دارای `__invoke` یا رشتهٔ `Class@method` توصیف می‌کند و تبدیل برخی خروجی‌ها به Response را شرح می‌دهد.
+
+متدهای معرفی‌شده برای Response:
 
 ```php
 Response::html($body, $status = 200, $headers = []);
@@ -1103,19 +1097,28 @@ Response::text($body, $status = 200, $headers = []);
 Response::notFound();
 ```
 
----
+قبل از استفاده، Namespace، امضای متدها، انواع خروجی پشتیبانی‌شده و آرگومان‌های Handler را از سورس بررسی کنید.
 
-## ۱۶. بارگذاری محیط و پیکربندی
+## متغیرهای محیطی
 
-`.env` از طریق `vlucas/phpdotenv` در `Env::load()` بارگذاری می‌شود. مقادیر را با `nexus_env('KEY', $default)` یا `Env::get()` بخوانید. مقادیر typed می‌شوند: `true`، `false`، `null`، `empty` تبدیل می‌شوند.
+مستندات قبلی بارگذاری `.env` از طریق `vlucas/phpdotenv` و انتخاب فایل تنظیمات با `CONFIG_PATH` را معرفی می‌کند.
 
-`CONFIG_PATH` فایل `main.json` فعال را انتخاب می‌کند. این اصلی‌ترین راه جابه‌جایی بین پیکربندی‌ها (مثلاً `main.json` و `main.composite.json`) بدون دست زدن به PHP است.
+نمونه:
 
----
+```dotenv
+APP_ENV=local
+APP_DEBUG=true
+CONFIG_PATH=config/main.json
+```
 
-## ۱۷. تنظیم آپاچی
+- فایل محیطی محلی را وارد Git نکنید.
+- در `.env.example` فقط مقدارهای نمونه قرار دهید.
+- برای اطلاعات محرمانهٔ سرور از متغیر محیطی یا ابزار مدیریت Secret استفاده کنید.
+- فرض نکنید تمام متغیرهای مثال‌های قدیمی در سورس فعلی خوانده می‌شوند.
 
-DocumentRoot → `public/`. فایل `.htaccess` لازم (از قبل در `public/` هست):
+## تنظیم Apache
+
+در تنظیمات مستندشده، Document Root باید به `public/` اشاره کند. فایل `public/.htaccess` ممکن است از قوانینی مشابه این استفاده کند:
 
 ```apache
 <IfModule mod_rewrite.c>
@@ -1126,127 +1129,73 @@ DocumentRoot → `public/`. فایل `.htaccess` لازم (از قبل در `pub
 </IfModule>
 ```
 
-اگر امکان تنظیم DocumentRoot نیست، فرم `http://localhost/project/public/` کار می‌کند چون `.htaccess` همه را به `index.php` rewrite می‌کند.
+فایل واقعی `.htaccess` را بررسی کنید. Apache باید اجازهٔ Overrideهای لازم را بدهد و `mod_rewrite` فعال باشد.
 
----
+برای امنیت، اگر Document Root ریشهٔ ریپازیتوری را در معرض وب قرار می‌دهد، از آن استفاده نکنید؛ ممکن است `.env`، سورس و فایل‌های تنظیمات افشا شوند.
 
-## ۱۸. مثال‌ها
+## گسترش OmniCore
 
-**تک‌الگو (MVC)**
+قبل از نوشتن Extension، Interface و مثال متناظر را در سورس فعلی بررسی کنید.
 
-```json
-"architecture": { "default": "mvc" }
-```
+نقاط توسعهٔ معرفی‌شده:
 
-**سوییچ per-route**
+- **Kernel معماری سفارشی:** پیاده‌سازی قرارداد Kernel و ثبت آن در `architecture.kernels`.
+- **Adapter:** پیاده‌سازی قرارداد Adapter و ثبت آن در Adapter Registry.
+- **Service Provider:** پیاده‌سازی Interface مربوطه و افزودن کلاس به `providers`.
+- **Plugin Bridge:** پیاده‌سازی قرارداد Bridge و ثبت آن در `plugins.bridges`.
+- **ماژول:** پیاده‌سازی قرارداد ماژول و ثبت از طریق Module Registry پشتیبانی‌شده.
 
-```json
-"architecture": {
-  "routes": {
-    "/api/users": "cqrs",
-    "/reports/{id}": "adr"
-  }
-}
-```
+Namespaceها و امضای متدها را از سورس استخراج کنید. برخی ارجاع‌ها ممکن است هنوز از نام قدیمی `Nexus\` استفاده کنند. تغییر آن‌ها باید همراه با اصلاح Composer Autoload، Namespaceهای سورس، تست‌ها و مثال‌ها باشد.
 
-**سوییچ per-module**
+## استقرار و امنیت
 
-```json
-"architecture": {
-  "modules": { "Billing": "hexagonal", "Auth": "mvc" }
-}
-```
+پیش از استقرار:
 
-**همزیستی**
+1. تست‌های موجود در ریپازیتوری را اجرا کنید.
+2. در صورت وجود Lock File، وابستگی‌ها را بر اساس آن نصب کنید.
+3. متغیرهای محیط Production را تنظیم و Debug را غیرفعال کنید.
+4. فایل‌های `.env`، سورس، تنظیمات، Log و Cache را تا حد امکان بیرون از Document Root نگه دارید.
+5. دسترسی نوشتن پوشه‌های Runtime را به حداقل لازم محدود کنید.
+6. Adapterها و پلاگین‌های فعال، مجوز و وضعیت نگهداری آن‌ها را بررسی کنید.
+7. هنگام درخواست‌های وب، پکیج Composer را به‌طور خودکار نصب نکنید.
+8. برای Kernel ناشناخته، مسیر نامعتبر، پکیج گمشده و خطای پلاگین تست داشته باشید.
+9. پیش از ارتقا، از داده‌ها نسخهٔ پشتیبان بگیرید و روش استقرار را آزمایش کنید.
 
-```json
-"architecture": {
-  "compose": ["mvc", "cqrs"],
-  "strategy": "fallthrough"
-}
-```
+توصیف یک قابلیت در این فایل به معنی آماده‌بودن آن برای Production نیست؛ پروژه هنوز آزمایشی است.
 
-یک کنترلر MVC با تنظیم `$request->attributes['command']` به Kernel `cqrs` واگذار می‌کند؛ `CommandBus` آن را ارسال می‌کند؛ پاسخ از زنجیره برمی‌گردد.
+## عیب‌یابی
 
----
-
-## ۱۹. توسعه فریمورک
-
-**افزودن Kernel سفارشی**
-
-۱. `Nexus\Contracts\PatternKernelInterface` را پیاده کنید.
-۲. در `main.json` ثبت کنید: `"architecture": { "kernels": { "my-kernel": "App\\Kernel\\MyKernel" } }`.
-
-**افزودن آداپتر سفارشی**
-
-۱. از `Nexus\Adapters\Adapter` ارث‌بری کنید.
-۲. کلاس را در `AdapterRegistry::$classes` ثبت کنید.
-۳. در `"adapters": [...]` فعال کنید.
-
-**افزودن Service Provider سفارشی**
-
-۱. `Nexus\Bootstrap\ServiceProviderInterface` را پیاده کنید.
-۲. نام کلاس را به `"providers": [...]` بیفزایید.
-
-**افزودن پل پلاگین سفارشی**
-
-۱. `Nexus\Contracts\PluginBridgeInterface` را پیاده کنید.
-۲. یک ورودی `{ "class": "...", "requires": [...] }` به `plugins.bridges` بیفزایید.
-
-**افزودن ماژول سفارشی (الگوی modular)**
-
-۱. `Nexus\Kernels\Modular\ModuleInterface` را پیاده کنید.
-۲. در زمان boot در یک provider ثبت کنید:
-
-```php
-$registry = $context->container->get(ModuleRegistry::class);
-$registry->register(new BillingModule());
-```
-
----
-
-## ۲۰. بسته‌بندی و استقرار
-
-**ساخت آرشیو قابل استقرار** (بدون vendor و state):
-
-```
-zip -r project.zip . -x "vendor/*" "storage/*" ".env" ".git/*"
-```
-
-Windows PowerShell:
-
-```
-Compress-Archive -Path * -DestinationPath project.zip -Force
-```
-
-**روی سرور مقصد**
-
-```
-unzip project.zip -d project
-cd project
-composer install --no-dev --optimize-autoloader
-cp .env.example .env
-# ویرایش .env: APP_ENV=production, APP_DEBUG=false, CONFIG_PATH=config/main.json
-chmod -R 775 storage/
-```
-
-DocumentRoot را به `public/` تنظیم کنید. تمام.
-
----
-
-## ۲۱. عیب‌یابی
-
-| نشانه | علت | رفع |
+| مشکل | علت احتمالی | بررسی پیشنهادی |
 |---|---|---|
-| `Class "Nexus\\Bootstrap\\KernelLoader" not found` | نبود `use` در `ContextFactory.php` | افزودن `use Nexus\Kernel\KernelLoader;` |
-| 404 روی همه مسیرها | `.htaccess` اجرا نمی‌شود | فعال‌سازی `mod_rewrite` و `AllowOverride All` |
-| 500 بدون پنل HTML | `app.debug = false` | برای local `APP_DEBUG=true` |
-| پاسخ خالی روی یک مسیر | هندلر `null` برگرداند | برگرداندن string، array یا `Response` |
-| وابستگی چرخه‌ای در کانتینر | دو سرویس یکدیگر را می‌خواهند | شکستن چرخه با factory |
-| `No route matched` | عدم تطابق مسیر | بررسی `routing.routes` و `methods` |
+| نصب Composer ناموفق است | ناسازگاری نسخهٔ PHP یا Extension | `php -v`، `composer.json` و خروجی Composer را بررسی کنید |
+| تمام مسیرها 404 می‌دهند | Rewrite یا تعریف مسیرها اشتباه است | `.htaccess`، تنظیمات Apache، مسیر و HTTP Method را بررسی کنید |
+| خطای 500 بدون جزئیات | Debug خاموش است یا Log در دسترس نیست | Log سرور را بررسی کنید؛ Debug را فقط در محیط محلی روشن کنید |
+| پاسخ Handler خالی است | خروجی پشتیبانی نمی‌شود یا Handler اشتباه است | امضای Handler و تبدیل خروجی به Response را بررسی کنید |
+| Container سرویس را پیدا نمی‌کند | Binding موجود نیست یا نام کلاس اشتباه است | Namespace، Autoload و Bindingها را بررسی کنید |
+| معماری شناخته نمی‌شود | Kernel ثبت نشده یا نام تنظیمات غلط است | `architecture.kernels` و Kernel Registry را بررسی کنید |
+| Adapter در دسترس نیست | پکیج لازم نصب نشده یا Adapter غیرفعال است | وابستگی‌های Composer و تنظیمات Adapter را بررسی کنید |
+| Plugin Bridge هنگام Boot خطا می‌دهد | وابستگی گمشده یا پیاده‌سازی نامعتبر است | قرارداد Bridge، فهرست پکیج‌ها و Log را بررسی کنید |
+| تغییر `.env` اثر ندارد | فایل محیطی یا مسیر تنظیمات اشتباه است | پوشهٔ اجرای برنامه و `CONFIG_PATH` را بررسی کنید |
 
----
+صرفاً بر اساس پیام خطا، Import یا Namespace جدید اضافه نکنید؛ ابتدا محل واقعی کلاس و تنظیمات Autoload در Composer را بررسی کنید.
 
-**پایان مستندات فارسی.**
+## مشارکت
 
-</div>
+برای گزارش باگ، تست، بهبود مستندات و قابلیت‌های جدید می‌توانید مشارکت کنید.
+
+پیش از ارسال Pull Request:
+
+1. مشکل یا پیشنهاد را دقیق توضیح دهید.
+2. برای باگ‌ها مراحل بازتولید بنویسید.
+3. در صورت امکان تست اضافه یا اصلاح کنید.
+4. تغییرات رفتار عمومی یا تنظیمات را در مستندات منعکس کنید.
+5. بدون تست، ادعای سازگاری نکنید.
+6. Secret، فایل محیطی محلی، دادهٔ Runtime یا تغییرات نامرتبط را ارسال نکنید.
+
+ریپازیتوری و بخش Issues:
+
+<https://github.com/amir-starX/OmniCore>
+
+## مجوز و وضعیت پروژه
+
+برای متن حقوقی معتبر مجوز، فایل [`LICENSE`](LICENSE) را بخوانید. پیش از انتشار نسخه، مجوز درج‌شده در این مستند، `README.md` و اطلاعات پکیج باید با همان فایل سازگار باشد.
