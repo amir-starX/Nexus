@@ -28,7 +28,6 @@ def run(command):
 
 
 def refresh_path():
-    """Refresh PATH for common Git installation locations."""
     paths = []
 
     if os.name == "nt":
@@ -141,7 +140,6 @@ def main():
 
     run(["git", "--version"])
 
-    # Detect an existing repository
     current = Path.cwd()
     project = current / PROJECT_DIR
 
@@ -167,10 +165,8 @@ def main():
 
         target = project
 
-    # Change to the repository directory
     os.chdir(target)
 
-    # Verify repository
     try:
         subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
@@ -182,22 +178,18 @@ def main():
         error("The target directory is not a valid Git repository.")
         return 1
 
-    # Check PHP
     if not shutil.which("php"):
         error("PHP is missing: https://www.php.net/")
         return 1
 
-    # Check Composer
     if not shutil.which("composer"):
         error("Composer is missing: https://getcomposer.org/download/")
         return 1
 
-    # Check Composer configuration
     if not (Path.cwd() / "composer.json").is_file():
         error("composer.json was not found in the repository.")
         return 1
 
-    # Install dependencies
     info("Running composer install...")
 
     if not run(["composer", "install"]):
